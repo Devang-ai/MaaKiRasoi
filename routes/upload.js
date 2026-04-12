@@ -1,12 +1,38 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { storage } = require('../config/cloudinary');
+const { storage, cloudinary } = require('../config/cloudinary');
 const auth = require('../middleware/auth');
+
+// POST /api/upload/base64 — Upload base64 image directly to Cloudinary
+router.post('/base64', auth, async (req, res) => {
+    try {
+        const { base64 } = req.body;
+        if (!base64) {
+            return res.status(400).json({ message: 'No base64 data provided' });
+        }
+
+        // Upload to Cloudinary using the base64 string
+        // Note: The string should be in the format "data:image/jpeg;base64,..."
+        const uploadResponse = await cloudinary.uploader.upload(base64, {
+            folder: 'maakirasoi_docs',
+            resource_type: 'auto',
+        });
+
+        res.status(200).json({
+            message: 'Image uploaded successfully via Base64',
+            url: uploadResponse.secure_url,
+            public_id: uploadResponse.public_id
+        });
+    } catch (error) {
+        console.error('Base64 Upload Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to upload base64 image' });
+    }
+});
 
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+    limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
 }).single('file');
 
 // POST /api/upload/restaurant-docs — Upload directly to Cloudinary
