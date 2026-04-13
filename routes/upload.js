@@ -12,6 +12,21 @@ router.post('/base64', auth, async (req, res) => {
             return res.status(400).json({ message: 'No base64 data provided' });
         }
 
+        // 🔍 Diagnostic check: If the client sends a local URI instead of data
+        if (typeof base64 !== 'string') {
+            console.error('CRITICAL: Received non-string base64 data!', typeof base64);
+            return res.status(400).json({ message: 'Invalid data format. Expected base64 string.' });
+        }
+
+        if (base64.startsWith('file://') || base64.startsWith('content://')) {
+            console.error('CRITICAL: Client sent local URI instead of Base64 data!', base64.substring(0, 100));
+            return res.status(400).json({ 
+                message: 'Client Sync Error: The server received a local file path instead of image data. Please ensure your app is sending actual base64 content.' 
+            });
+        }
+
+        console.log(`Starting base64 upload to Cloudinary. Data starts with: ${base64.substring(0, 50)}...`);
+
         // Upload to Cloudinary using the base64 string
         // Note: The string should be in the format "data:image/jpeg;base64,..."
         const uploadResponse = await cloudinary.uploader.upload(base64, {
