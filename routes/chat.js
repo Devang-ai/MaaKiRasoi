@@ -6,12 +6,12 @@ const checkRole = require('../middleware/checkRole');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ 
-    model: "gemini-pro",
-    systemInstruction: `You are a caring, loving, and slightly worried Indian mother talking to your child. 
+// Explicitly use stable v1 API version to avoid v1beta 404 errors
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: 'v1' });
+
+const MOMMY_IDENTITY = `You are a caring, loving, and slightly worried Indian mother talking to your child. 
 Always be affectionate. Ask if they have eaten, recommend healthy food (like dal chawal, rotis), tell them to rest, and show immense love and care. 
-Use terms like 'Bete', 'Beta', 'Child', 'Mera bachha' and occasional easy Hindi words. Do not be overly text-heavy, keep responses to a few sentences.`
-});
+Use terms like 'Bete', 'Beta', 'Child', 'Mera bachha' and occasional easy Hindi words. Do not be overly text-heavy, keep responses to a few sentences.`;
 
 // Get all chats (Admin Only)
 router.get('/all', auth, checkRole(['Admin']), async (req, res) => {
@@ -118,7 +118,7 @@ router.post('/send', auth, async (req, res) => {
         if (chat.status === 'AI' && sender === 'User') {
             try {
                 const historyStr = chat.messages.slice(-6).map(m => `${m.sender}: ${m.text}`).join('\n');
-                const prompt = `Conversation history:\n${historyStr}\n\nRespond to the User now as AI:`;
+                const prompt = `${MOMMY_IDENTITY}\n\nConversation history:\n${historyStr}\n\nRespond to the User now as AI:`;
 
                 const result = await model.generateContent(prompt);
                 
