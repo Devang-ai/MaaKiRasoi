@@ -73,6 +73,12 @@ router.post('/', auth, async (req, res) => {
                 orderId: order._id,
                 orderData: order
             });
+
+            // Global Rider Alert (Broadcast to all online riders)
+            io.to('all_riders').emit('new_delivery_available', {
+                orderId: order._id,
+                orderData: order
+            });
         }
 
         res.status(201).json(order);

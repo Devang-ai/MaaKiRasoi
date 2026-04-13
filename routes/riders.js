@@ -4,28 +4,15 @@ const Rider = require('../models/Rider');
 const Activity = require('../models/Activity');
 const auth = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
-const fs = require('fs');
-const path = require('path');
-
+const { storage } = require('../config/cloudinary');
 const multer = require('multer');
 
-// Ensure partner_docs directory exists
-const uploadDir = path.join(__dirname, '../partner_docs');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Configure Multer for document storage
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir); 
-    },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + '-' + file.originalname);
-    }
+// Configure Multer for Cloudinary storage
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
-const upload = multer({ storage: storage });
 const cpUpload = upload.fields([
     { name: 'aadhar', maxCount: 1 },
     { name: 'license', maxCount: 1 },
@@ -45,7 +32,8 @@ router.post('/register', cpUpload, async (req, res) => {
 
         const getFileUrl = (fieldName) => {
             if (req.files && req.files[fieldName] && req.files[fieldName][0]) {
-                return `/uploads/${req.files[fieldName][0].filename}`;
+                // For Cloudinary, multer-storage-cloudinary puts the URL in .path
+                return req.files[fieldName][0].path; 
             }
             return null;
         };
@@ -96,6 +84,60 @@ router.post('/login', async (req, res) => {
         res.json({ token, rider });
     } catch (err) {
         res.status(400).json({ message: err.message });
+    }
+});
+
+// GET /api/riders/earnings - Get real performance stats for the logged-in rider
+router.get('/earnings', auth, async (req, res) => {
+    try {
+        const Order = require('../models/Order');
+        const riderId = req.user.id;
+
+        // Current date range for 'Today'
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Previous 7 days for 'Weekly'
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        // 1. Calculate Today's Earnings
+        const todayOrders = await Order.find({
+            riderId: riderId,
+            status: 'delivered',
+            createdAt: { $gte: startOfDay, $lte: endOfDay }
+        });
+        const todayEarnings = todayOrders.reduce((sum, order) => sum + (order.riderEarnings || 40), 0);
+
+        // 2. Calculate Weekly Earnings
+        const weeklyOrders = await Order.find({
+            riderId: riderId,
+            status: 'delivered',
+            createdAt: { $gte: sevenDaysAgo }
+        });
+        const weeklyEarnings = weeklyOrders.reduce((sum, order) => sum + (order.riderEarnings || 40), 0);
+
+        // 3. Transactions History
+        const history = weeklyOrders.map(order => ({
+            id: order._id,
+            title: `Deliver to ${order.customer}`,
+            amount: order.riderEarnings || 40,
+            type: 'delivery',
+            timestamp: order.createdAt
+        }));
+
+        res.json({
+            today: todayEarnings,
+            weekly: weeklyEarnings,
+            total: weeklyEarnings, // Simplified for now
+            balance: todayEarnings, // Simplified available balance
+            history: history.sort((a, b) => b.timestamp - a.timestamp)
+        });
+    } catch (err) {
+        console.error('Earnings Fetch Error:', err);
+        res.status(500).json({ message: 'Failed to fetch earnings' });
     }
 });
 
