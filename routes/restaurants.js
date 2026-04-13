@@ -97,4 +97,59 @@ router.delete('/:id', auth, async (req, res) => {
     }
 });
 
+// GET my dashboard stats for partner app
+router.get('/my-hq-stats', auth, async (req, res) => {
+    try {
+        const Order = require('../models/Order');
+        const MenuItem = require('../models/MenuItem');
+        const SubscriptionPlan = require('../models/SubscriptionPlan');
+        const Restaurant = require('../models/Restaurant');
+        const restaurantId = req.user.id;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const [
+            todayOrders,
+            activeOrdersCount,
+            menuItems,
+            restaurant,
+            activePlans
+        ] = await Promise.all([
+            Order.find({ 
+                restaurant: restaurantId, 
+                createdAt: { $gte: today },
+                status: { $in: ['delivered', 'Completed'] }
+            }),
+            Order.countDocuments({ 
+                restaurant: restaurantId, 
+                status: { $in: ['placed', 'confirmed', 'preparing', 'out_for_delivery', 'ready_for_pickup'] } 
+            }),
+            MenuItem.find({ restaurant: restaurantId }),
+            Restaurant.findById(restaurantId).select('rating'),
+            SubscriptionPlan.find({ restaurantId: restaurantId })
+        ]);
+
+        const todayRevenue = todayOrders.reduce((sum, o) => sum + (o.total || o.totalAmount || 0), 0);
+        const avgPrepTime = menuItems.length > 0 
+            ? Math.round(menuItems.reduce((sum, item) => sum + (parseInt(item.prepTime) || 0), 0) / menuItems.length)
+            : 0;
+        
+        const activeSubs = activePlans.reduce((sum, p) => sum + (p.activeSubscribers || 0), 0);
+        const subRevenue = activePlans.reduce((sum, p) => sum + ((p.activeSubscribers || 0) * (p.price || 0)), 0);
+
+        res.json({
+            todayRevenue,
+            activeOrders: activeOrdersCount,
+            avgPrepTime,
+            rating: restaurant?.rating || 0,
+            activeSubscriptions: activeSubs,
+            subscriptionRevenue: subRevenue
+        });
+    } catch (err) {
+        console.error("Dashboard Stats Error:", err);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
 module.exports = router;

@@ -227,6 +227,13 @@ router.patch('/:id/user-cancel', auth, async (req, res) => {
                     orderData: order
                 });
             });
+
+            // Specifically for the PartnerApp list refresh
+            io.to(`partner_${order.restaurantId}`).emit('partnerOrderUpdate', {
+                orderId: order._id,
+                status: 'cancelled',
+                restaurantId: order.restaurantId
+            });
         }
 
         res.json({ message: 'Order cancelled successfully', order });
