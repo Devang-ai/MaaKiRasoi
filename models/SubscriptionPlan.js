@@ -22,6 +22,18 @@ const subscriptionPlanSchema = new mongoose.Schema({
     description: { 
         type: String 
     },
+    imageURL: {
+        type: String,
+        default: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=60'
+    },
+    duration: {
+        type: String,
+        default: '30 Days'
+    },
+    isVeg: {
+        type: Boolean,
+        default: true
+    },
     items: [{ 
         type: String 
     }],

@@ -19,6 +19,21 @@ router.get('/', auth, async (req, res) => {
     }
 });
 
+// GET Available Orders (For Riders to see unclaimed orders)
+router.get('/available', auth, async (req, res) => {
+    try {
+        // Return orders that are 'placed' but haven't been claimed by any rider yet
+        const orders = await Order.find({ 
+            status: 'placed',
+            riderId: { $exists: false } 
+        }).sort({ createdAt: -1 });
+        
+        res.json(orders);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // GET /orders/restaurant/mine — Partner fetches their own restaurant's orders
 router.get('/restaurant/mine', auth, async (req, res) => {
     try {

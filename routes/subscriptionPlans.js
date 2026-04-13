@@ -10,6 +10,16 @@ const emitUpdate = (io, restaurantId, event, data) => {
     io.to(`restaurant_${restaurantId}`).emit(event, data);
 };
 
+// GET all ACTIVE subscription plans across all restaurants (UserApp - Public)
+router.get('/all', async (req, res) => {
+    try {
+        const plans = await SubscriptionPlan.find({ status: 'active' }).populate('restaurantId', 'name imageURL city');
+        res.json(plans);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // GET all subscription plans (Admin Panel)
 router.get('/', auth, async (req, res) => {
     try {
