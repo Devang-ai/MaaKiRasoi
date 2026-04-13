@@ -1,4 +1,11 @@
 require('dotenv').config();
+// Gemini API Diagnostic
+if (!process.env.GEMINI_API_KEY) {
+    console.warn('⚠️  WARNING: GEMINI_API_KEY is missing in your .env or environment variables. AI Chat will use fallback mode.');
+} else {
+    console.log('✅ GEMINI AI: Configuration loaded.');
+}
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');

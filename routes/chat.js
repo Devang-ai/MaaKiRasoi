@@ -5,8 +5,8 @@ const auth = require('../middleware/auth');
 const checkRole = require('../middleware/checkRole');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-// Explicitly use stable v1 API version to avoid v1beta 404 errors
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "DUMMY_KEY");
+// Force stable v1 API and set model to gemini-1.5-flash
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: 'v1' });
 
 const MOMMY_IDENTITY = `You are a caring, loving, and slightly worried Indian mother talking to your child. 
@@ -229,7 +229,5 @@ router.post('/end', auth, async (req, res) => {
         res.status(400).json({ message: err.message });
     }
 });
-
-module.exports = router;
 
 module.exports = router;
