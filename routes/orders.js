@@ -152,13 +152,13 @@ router.patch('/:id/status', auth, checkRole(['Admin', 'Rider', 'Partner']), asyn
 });
 
 
-// Assign Rider to order
+// Assign Rider to order (Admin manual assignment)
 router.patch('/:id/assign-rider', auth, checkRole(['Admin']), async (req, res) => {
     try {
         const { riderId, riderName } = req.body;
         const order = await Order.findByIdAndUpdate(
             req.params.id,
-            { riderId, riderName, status: 'confirmed' },
+            { riderId, riderName, status: 'confirmed' }, // status: 'confirmed'
             { new: true }
         );
         if (!order) return res.status(404).json({ message: 'Order not found' });
@@ -178,6 +178,58 @@ router.patch('/:id/assign-rider', auth, checkRole(['Admin']), async (req, res) =
             io.to(`rider_${riderId}`).emit('order_assigned', {
                 orderId: order._id,
                 orderData: order
+            });
+        }
+
+        res.json(order);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+});
+
+// Rider Self-Acceptance (Rider claims an available order)
+router.patch('/:id/rider-accept', auth, checkRole(['Rider']), async (req, res) => {
+    try {
+        const { riderName } = req.body;
+        const riderId = req.user.id;
+
+        const existing = await Order.findById(req.params.id);
+        if (!existing) return res.status(404).json({ message: 'Order not found' });
+
+        if (existing.riderId) {
+            return res.status(400).json({ message: 'Order already accepted by another rider' });
+        }
+
+        const order = await Order.findByIdAndUpdate(
+            req.params.id,
+            { 
+                riderId, 
+                riderName, 
+                status: 'confirmed',
+                acceptedAt: new Date()
+            },
+            { new: true }
+        );
+
+        const io = req.app.get('io');
+        if (io) {
+            // Room targets
+            const targets = [String(order.userId), `partner_${order.restaurantId}`, 'Admin'];
+            
+            targets.forEach(room => {
+                io.to(room).emit('orderStatusUpdate', {
+                    orderId: order._id,
+                    status: 'confirmed',
+                    orderData: order
+                });
+            });
+
+            // Log activity
+            const Activity = require('../models/Activity');
+            await Activity.create({
+                type: 'Update',
+                description: `Rider ${riderName} accepted order ${order.orderId}`,
+                time: new Date()
             });
         }
 
