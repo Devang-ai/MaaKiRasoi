@@ -30,6 +30,35 @@ router.get('/my-plans', auth, async (req, res) => {
     }
 });
 
+// GET my restaurant's active subscribers (PartnerApp)
+router.get('/my-subscribers', auth, async (req, res) => {
+    try {
+        const User = require('../models/User');
+        const subscribers = await User.find({ 
+            'subscription.restaurantId': req.user.id,
+            'subscription.status': 'active'
+        }).select('name email phone subscription userId');
+        
+        // Format for frontend
+        const formatted = subscribers.map(s => ({
+            id: s._id,
+            userId: s.userId,
+            userName: s.name,
+            email: s.email,
+            phone: s.phone,
+            planName: s.subscription.plan,
+            startDate: s.subscription.startDate,
+            endDate: s.subscription.endDate,
+            deliveryStatus: 'pending', // Default status for today
+            planId: s.subscription.planId || '' // Ensure we have planId if stored
+        }));
+        
+        res.json(formatted);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // GET plans for a specific restaurant (UserApp - Public)
 router.get('/restaurant/:restaurantId', async (req, res) => {
     try {

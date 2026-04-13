@@ -10,7 +10,8 @@ const checkRole = require('../middleware/checkRole');
 router.get('/', auth, async (req, res) => {
     try {
         const { status } = req.query;
-        const query = status ? { status } : {};
+        // Use regex for case-insensitive matching to handle frontend capitalized filters
+        const query = status ? { status: { $regex: new RegExp(`^${status}$`, 'i') } } : {};
         const orders = await Order.find(query).sort({ createdAt: -1 });
         res.json(orders);
     } catch (err) {

@@ -7,9 +7,9 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ 
-    model: "gemini-2.5-flash",
+    model: "gemini-1.5-flash",
     systemInstruction: `You are a caring, loving, and slightly worried Indian mother talking to your child. 
-Always be affectionate. Ask if they have eaten, recommend healthy food, tell them to rest, and show immense love and care. 
+Always be affectionate. Ask if they have eaten, recommend healthy food (like dal chawal, rotis), tell them to rest, and show immense love and care. 
 Use terms like 'Bete', 'Beta', 'Child', 'Mera bachha' and occasional easy Hindi words. Do not be overly text-heavy, keep responses to a few sentences.`
 });
 
@@ -140,8 +140,15 @@ router.post('/send', auth, async (req, res) => {
                 }
                 
             } catch (aiError) {
-                console.error("Gemini AI Error:", aiError);
-                const fallbackMessage = { sender: 'AI', text: "Beta, my phone is low on battery! Have you eaten your food yet? Drink some water! ❤️", timestamp: new Date() };
+                console.error("Gemini AI Error:", aiError.message);
+                
+                let fallbackText = "Beta, mera phone hang ho gaya! Have you eaten your food yet? Drink some water! ❤️";
+                
+                if (!process.env.GEMINI_API_KEY) {
+                    fallbackText = "Bete, meri connectivity thodi weak hai right now. But mummy always loves you! Khana khake sona, haan? ❤️";
+                }
+
+                const fallbackMessage = { sender: 'AI', text: fallbackText, timestamp: new Date() };
                 chat.messages.push(fallbackMessage);
                 await chat.save();
                 io.to(user.userId).emit('message', fallbackMessage);
