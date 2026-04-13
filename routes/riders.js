@@ -4,13 +4,21 @@ const Rider = require('../models/Rider');
 const Activity = require('../models/Activity');
 const auth = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const path = require('path');
 
 const multer = require('multer');
+
+// Ensure partner_docs directory exists
+const uploadDir = path.join(__dirname, '../partner_docs');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 // Configure Multer for document storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'partner_docs/');
+        cb(null, uploadDir); 
     },
     filename: (req, file, cb) => {
         cb(null, Date.now() + '-' + file.originalname);
@@ -68,8 +76,11 @@ router.post('/register', cpUpload, async (req, res) => {
             rider 
         });
     } catch (err) {
-        console.error('>>> [BACKEND] Registration Error:', err);
-        res.status(400).json({ message: err.message });
+        console.error('❌ [BACKEND] Registration Crash:', err);
+        res.status(500).json({ 
+            message: 'Registration failed on server', 
+            error: err.message
+        });
     }
 });
 
